@@ -11,6 +11,7 @@ on:
 
 permissions:
   contents: read
+  packages: write
 
 jobs:
   build:
@@ -38,3 +39,29 @@ jobs:
       - name: Run Maven build
         run: |
           mvn clean verify
+
+  publish-snapshot:
+    name: Publish Snapshot
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    needs:
+      - build
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: 'java/'
+    env:
+      MAVEN_ARGS: '--batch-mode --no-transfer-progress'
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+      - name: Setup Java JDK
+        uses: actions/setup-java@v6.1.0
+        with:
+          java-version: '8'
+          distribution: temurin
+          cache: maven
+          cache-dependency-path: 'java/pom.xml'
+      - name: Run Maven deploy
+        run: |
+          mvn deploy --define sha1="${GITHUB_SHA::7}"
