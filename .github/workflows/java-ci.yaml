@@ -1,0 +1,40 @@
+name: Java CI
+on:
+  push:
+    branches-ignore:
+      - 'main'
+    tags-ignore:
+      - '**'
+    paths:
+      - 'java/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build (Java ${{ matrix.java-version }})
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: 'java/'
+    env:
+      MAVEN_ARGS: '--batch-mode --no-transfer-progress'
+    strategy:
+      fail-fast: false
+      matrix:
+        java-version: ['8', '11', '17', '21', '25']
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+      - name: Setup Java JDK
+        uses: actions/setup-java@v6.1.0
+        with:
+          java-version: ${{ matrix.java-version }}
+          distribution: temurin
+          cache: maven
+          cache-dependency-path: 'java/pom.xml'
+      - name: Run Maven build
+        run: |
+          mvn clean verify
