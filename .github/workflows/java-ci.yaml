@@ -64,4 +64,4 @@ jobs:
           cache-dependency-path: 'java/pom.xml'
       - name: Run Maven deploy
         run: |
-          mvn deploy --define sha1="${GITHUB_SHA::7}"
+          mvn deploy --define sha1="-${GITHUB_SHA::7}"
