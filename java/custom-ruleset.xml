@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ruleset name="Custom Rules"
+  xmlns="http://pmd.sourceforge.net/ruleset/2.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
+  <description>
+    This project uses a custom ruleset that extends PMD's default quickstart ruleset [0].
+
+    [0] https://docs.pmd-code.org/pmd-doc-7.17.0/pmd_rules_java.html#additional-rulesets
+  </description>
+
+  <rule ref="rulesets/java/quickstart.xml" />
+</ruleset>
