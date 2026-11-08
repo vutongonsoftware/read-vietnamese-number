@@ -12,16 +12,17 @@ on:
 permissions:
   contents: read
   packages: write
+defaults:
+  run:
+    working-directory: 'java/'
+env:
+  MAVEN_ARGS: '--batch-mode --no-transfer-progress'
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
   build:
     name: Build (Java ${{ matrix.java-version }})
     runs-on: ubuntu-24.04
-    defaults:
-      run:
-        working-directory: 'java/'
-    env:
-      MAVEN_ARGS: '--batch-mode --no-transfer-progress'
     strategy:
       fail-fast: false
       matrix:
@@ -46,12 +47,6 @@ jobs:
     needs:
       - build
     runs-on: ubuntu-24.04
-    defaults:
-      run:
-        working-directory: 'java/'
-    env:
-      MAVEN_ARGS: '--batch-mode --no-transfer-progress'
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7.0.1
