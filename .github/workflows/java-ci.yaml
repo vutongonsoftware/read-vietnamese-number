@@ -73,6 +73,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Check release branch
+        working-directory: './'
         run: |
           if [[ "${GITHUB_REF}" != "refs/heads/main" ]]; then
             echo "::error title=Invalid release branch::Releases can only be published from the main branch"
