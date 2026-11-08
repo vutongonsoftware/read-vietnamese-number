@@ -1,0 +1,128 @@
+name: Java CI
+run-name: ${{ github.event_name == 'workflow_dispatch' && format('Publish version ({0})', inputs.release-version && 'release' || 'snapshot') || '' }}
+on:
+  push:
+    tags-ignore:
+      - '**'
+    paths:
+      - 'java/**'
+  workflow_dispatch:
+    inputs:
+      release-version:
+        description: 'Whether to release the current version'
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  packages: write
+defaults:
+  run:
+    working-directory: 'java/'
+env:
+  MAVEN_ARGS: '--batch-mode --no-transfer-progress'
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  build:
+    name: Build (Java ${{ matrix.java-version }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        java-version: ['8', '11', '17', '21', '25']
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+      - name: Setup Java JDK
+        uses: actions/setup-java@v6.1.0
+        with:
+          java-version: ${{ matrix.java-version }}
+          distribution: temurin
+          cache: maven
+          cache-dependency-path: 'java/pom.xml'
+      - name: Run Maven verify
+        run: |
+          mvn verify
+
+  publish-snapshot:
+    name: Publish Snapshot
+    if: ${{ github.event_name == 'workflow_dispatch' && !inputs.release-version }}
+    needs:
+      - build
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+      - name: Setup Java JDK
+        uses: actions/setup-java@v6.1.0
+        with:
+          java-version: '8'
+          distribution: temurin
+          cache: maven
+          cache-dependency-path: 'java/pom.xml'
+          mvn-server-repository-origins: 'github:https://maven.pkg.github.com'
+      - name: Run Maven deploy (snapshot)
+        run: |
+          mvn deploy --define sha1="-${GITHUB_SHA::7}" --define maven.test.skip=true
+
+  prepare-release:
+    name: Prepare Release
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.release-version }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check release branch
+        working-directory: './'
+        run: |
+          if [[ "${GITHUB_REF}" != "refs/heads/main" ]]; then
+            echo "::error title=Invalid release branch::Releases can only be published from the main branch"
+            exit 1
+          fi
+
+  publish-release:
+    name: Publish Release
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.release-version }}
+    needs:
+      - build
+      - prepare-release
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+        with:
+          fetch-tags: true
+      - name: Configure Git
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+      - name: Setup Java JDK
+        uses: actions/setup-java@v6.1.0
+        with:
+          java-version: '8'
+          distribution: temurin
+          cache: maven
+          cache-dependency-path: 'java/pom.xml'
+      - name: Get project info
+        id: project-info
+        run: |
+          version=$(mvn help:evaluate --quiet --define forceStdout --define expression=revision)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Create version tag
+        run: |
+          version='${{ steps.project-info.outputs.version }}'
+          git tag "java/$version" --annotate --message "Java: Release version $version"
+      - name: Run Maven deploy (release)
+        run: |
+          mvn deploy --define changelist='' --define maven.test.skip=true
+      - name: Commit next version
+        run: |
+          mvn build-helper:parse-version versions:set-property \
+            --define property=revision \
+            --define 'newVersion=${parsedVersion.majorVersion}.${parsedVersion.nextMinorVersion}.0'
+          next_version=$(mvn help:evaluate --quiet --define forceStdout --define expression=revision)
+          git add 'pom.xml'
+          git commit --message "Java: Bump version to $next_version"
+      - name: Push changes
+        run: |
+          git push --follow-tags
