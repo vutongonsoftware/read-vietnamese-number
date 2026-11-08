@@ -1,8 +1,7 @@
 name: Java CI
+run-name: ${{ github.event_name == 'workflow_dispatch' && format('Publish version ({0})', inputs.release-version && 'release' || 'snapshot') || '' }}
 on:
   push:
-    branches-ignore:
-      - 'main'
     tags-ignore:
       - '**'
     paths:
@@ -43,9 +42,9 @@ jobs:
           distribution: temurin
           cache: maven
           cache-dependency-path: 'java/pom.xml'
-      - name: Run Maven build
+      - name: Run Maven verify
         run: |
-          mvn clean verify
+          mvn verify
 
   publish-snapshot:
     name: Publish Snapshot
@@ -63,15 +62,29 @@ jobs:
           distribution: temurin
           cache: maven
           cache-dependency-path: 'java/pom.xml'
-      - name: Run Maven deploy
+          mvn-server-repository-origins: 'github:https://maven.pkg.github.com'
+      - name: Run Maven deploy (snapshot)
         run: |
-          mvn deploy --define sha1="-${GITHUB_SHA::7}"
+          mvn deploy --define sha1="-${GITHUB_SHA::7}" --define maven.test.skip=true
+
+  prepare-release:
+    name: Prepare Release
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.release-version }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check release branch
+        run: |
+          if [[ "${GITHUB_REF}" != "refs/heads/main" ]]; then
+            echo "::error title=Invalid release branch::Releases can only be published from the main branch"
+            exit 1
+          fi
 
   publish-release:
     name: Publish Release
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.release-version }}
     needs:
       - build
+      - prepare-release
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
@@ -96,11 +109,11 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
       - name: Create version tag
         run: |
-          version=${{ steps.project-info.outputs.version }}
+          version='${{ steps.project-info.outputs.version }}'
           git tag "java/$version" --annotate --message "Java: Release version $version"
-      - name: Run Maven deploy
+      - name: Run Maven deploy (release)
         run: |
-          mvn deploy --define changelist=''
+          mvn deploy --define changelist='' --define maven.test.skip=true
       - name: Commit next version
         run: |
           mvn build-helper:parse-version versions:set-property \
