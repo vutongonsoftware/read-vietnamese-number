@@ -111,4 +111,4 @@ jobs:
           git commit --message "Java: Bump version to $next_version"
       - name: Push changes
         run: |
-          git push --tags
+          git push --follow-tags
