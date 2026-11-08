@@ -100,7 +100,7 @@ jobs:
           git tag "java/$version" --annotate --message "Java: Release version $version"
       - name: Run Maven deploy
         run: |
-          mvn deploy --define changelist='' --define sha1="-${GITHUB_SHA::7}"
+          mvn deploy --define changelist=''
       - name: Commit next version
         run: |
           mvn build-helper:parse-version versions:set-property \
