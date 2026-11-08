@@ -105,7 +105,7 @@ jobs:
         run: |
           mvn build-helper:parse-version versions:set-property \
             --define property=revision \
-            --define newVersion=${parsedVersion.majorVersion}.${parsedVersion.nextMinorVersion}.0
+            --define 'newVersion=${parsedVersion.majorVersion}.${parsedVersion.nextMinorVersion}.0'
           next_version=$(mvn help:evaluate --quiet --define forceStdout --define expression=revision)
           git add 'pom.xml'
           git commit --message "Java: Bump version to $next_version"
